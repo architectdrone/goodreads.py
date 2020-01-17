@@ -10,12 +10,16 @@ class GoodreadsRequest:
     Represents a single request to Goodreads.
     '''
 
-    def __init__(self, endpoint):
+    def __init__(self, endpoint, special_endpoint=False):
         global key
         if endpoint is None:
             AssertionError("Unfortunately, there is no endpoint for looking up this data.")
 
-        url = f"https://www.goodreads.com/{endpoint}?key={key}"
+        if special_endpoint:
+            url = endpoint
+        else:
+            url = f"https://www.goodreads.com/{endpoint}?key={key}"
+
         resp = requests.get(url)
         self.response = ElementTree.fromstring(resp.content)
         self.response = self.response[1] #The first entry is always just unneeded stuff.
@@ -34,6 +38,7 @@ class GoodreadsData:
         '''
         self.request = None #When a request is made, it is stored in memory. This assumes that a piece of data will never update within the lifetime of the program.
         self.cache = {}
+        self.special_endpoint = False #When an endpoint requires more sturcture than what is currently present
 
         # Handle Cacheing
         if incomplete_tree is not None:
@@ -53,7 +58,7 @@ class GoodreadsData:
             result = self.cache[lookup_value]
         else: #If not, we look at an actual request
             if self.request is None: #We check if there is a request already present before making a request
-                self.request = GoodreadsRequest(self.endpoint).response
+                self.request = GoodreadsRequest(self.endpoint, special_endpoint=self.special_endpoint).response
             result = self.request.find(lookup_value)
 
         if returnText:
@@ -201,6 +206,58 @@ class Shelf(GoodreadsData):
     
     def description(self):
         return self._request("description")
+
+class User(GoodreadsData):
+    def __init__(self, id, incomplete_tree=None):
+        GoodreadsData.__init__(self, incomplete_tree=incomplete_tree)
+        self.id = id
+        self.endpoint = f"user/show/{id}"
+    
+    def name(self):
+        return self._request("name")
+    
+    def user_name(self):
+        return self._request("user_name")
+    
+    def about(self):
+        return self._request("about")
+    
+    def age(self):
+        return self._request("age")
+    
+    def gender(self):
+        return self._request("gender")
+    
+    def location(self):
+        return self._request("location")
+    
+    def website(self):
+        return self._request("website")
+    
+    def joined(self):
+        return self._request("joined")
+    
+    def last_active(self):
+        return self._request("last_active")
+    
+    def interests(self):
+        return self._request("interests")
+    
+    def favorite_authors(self):
+        authors = self._request("favorite_authors", returnText=False)
+        return self.parseDataList(authors, Author)
+    
+    def favorite_books(self):
+        books = self._request("favorite_books", returnText=False)
+        return self.parseDataList(books, Book)
+    
+    def friends_count(self):
+        return self._request("friends_count")
+    
+    def user_shelves(self):
+        shelves = self._request("user_shelves", returnText=False)
+        return self.parseDataList(shelves, Shelf)
+    
 
 def author_data(author):
     print(f"Name: {author.name()}")
